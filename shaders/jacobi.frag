@@ -3,7 +3,6 @@ precision mediump sampler2D;
 
 varying vec2 coords; // grid coordinates    
 uniform vec2 texelSize;
-uniform float alpha;
 uniform sampler2D pressure;
 uniform sampler2D divergence;
 
@@ -18,5 +17,5 @@ void main() {
   float bC = texture2D(divergence, coords).x;
   
   // evaluate Jacobi iteration
-  gl_FragColor = vec4(0.25 * (L + R + B + T + alpha * bC), 0, 0, 1);
+  gl_FragColor = vec4(0.25 * (L + R + B + T - bC), 0, 0, 1);
 }

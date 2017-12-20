@@ -1,10 +1,14 @@
-const canvas = document.querySelector("canvas");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
-const params = { alpha: false, depth: false, stencil: false, antialias: false };
-const igloo = new Igloo(canvas, params);
-const gl = igloo.gl;
-const quad = igloo.array(Igloo.QUAD2);
+const swal = require("sweetalert");
+const fs = require('fs');
+const regl = require('regl')({
+    attributes: { 
+         alpha: false, 
+         depth: false, 
+         stencil: false, 
+         antialias: false 
+    },
+    extensions: ['OES_texture_half_float', 'OES_texture_half_float_linear']
+});
 
 const config = {
     TEXTURE_DOWNSAMPLE: 1,
@@ -12,184 +16,196 @@ const config = {
     VELOCITY_DISSIPATION: 0.99,
     PRESSURE_DISSIPATION: 0.8,
     PRESSURE_ITERATIONS: 25,
-    CURL: 30,
     SPLAT_RADIUS: 0.0012
 };
 
-const splatProgram = igloo.program("shaders/project.vert", "shaders/splat.frag").attrib("points", quad, 2);
-const advectProgram = igloo.program("shaders/project.vert", "shaders/advect.frag").attrib("points", quad, 2);
-const jacobiProgram = igloo.program("shaders/project.vert", "shaders/jacobi.frag").attrib("points", quad, 2);
-const divergenceProgram = igloo.program("shaders/project.vert", "shaders/divergence.frag").attrib("points", quad, 2);
-const clearProgram = igloo.program("shaders/project.vert", "shaders/clear.frag").attrib("points", quad, 2);
-const gradientSubtractProgram = igloo.program("shaders/project.vert", "shaders/gradientSubtract.frag").attrib("points", quad, 2);
-const displayProgram = igloo.program("shaders/project.vert", "shaders/display.frag").attrib("points", quad, 2);
-
-const ext = gl.getExtension('OES_texture_half_float');
-gl.getExtension('OES_texture_half_float_linear');
-
-let widthDownsample = canvas.width >> config.TEXTURE_DOWNSAMPLE;
-let heightDownsample = canvas.width >> config.TEXTURE_DOWNSAMPLE;
-
-let createFBO = (index, filter) => {
-    gl.activeTexture(gl.TEXTURE0 + index);
-    const texture = igloo.texture(null, gl.RGBA, gl.CLAMP_TO_EDGE, filter, ext.HALF_FLOAT_OES);
-    texture.blank(widthDownsample, heightDownsample);
-    const framebuffer = igloo.framebuffer(texture);
+let doubleFbo = (filter) => {
+    let fbos = [createFbo(filter), createFbo(filter)];
     return {
-        get reader() {
-            return texture;
+        get read() {
+            return fbos[0];
         },
-        get writer() {
-            return framebuffer;
-        },
-        get index() {
-            return index;
-        }
-    };
-};
-
-let doubleFbo = (index, filter) => {
-    let fbo1 = createFBO(index    , filter);
-    let fbo2 = createFBO(index + 1, filter);
-
-    return {
-        get first() {
-            return fbo1;
-        },
-        get reader() {
-            return fbo1.index;
-        },
-        get second() {
-            return fbo2;
-        },
-        get writer() {
-            return fbo2.writer;
+        get write() {
+            return fbos[1];
         },
         swap() {
-            [fbo1, fbo2] = [fbo2, fbo1];
+            fbos.reverse();
         }
     };
 };
 
-const velocity = doubleFbo(0, gl.LINEAR);
-const density = doubleFbo(2, gl.LINEAR);
-const pressure = doubleFbo(4, gl.NEAREST);
-const divergence = createFBO(6, gl.NEAREST);
+let createFbo = (filter) => {
+    return regl.framebuffer({
+        color: regl.texture({
+            width: window.innerWidth >> config.TEXTURE_DOWNSAMPLE,
+            height: window.innerHeight >> config.TEXTURE_DOWNSAMPLE,
+            wrap: 'clamp',
+            min: filter,
+            mag: filter,
+            type: 'half float'
+        }),
+        depthStencil: false
+    });
+};
 
-[advectProgram, jacobiProgram, divergenceProgram, gradientSubtractProgram].forEach((x) => {
-    x.use().uniform("texelSize", [1 / widthDownsample, 1 / heightDownsample]);
-});
+const velocity = doubleFbo('linear');
+const density = doubleFbo('linear');
+const pressure = doubleFbo('nearest');
+const divergenceTex = createFbo('nearest');
 
-let lastTime = Date.now();
-function draw() {    
-    const tick = (Date.now() - lastTime) / 1000;
-    lastTime = Date.now();
+const fullscreenDraw = {
+	vert: fs.readFileSync(__dirname + "/shaders/project.vert", 'utf8'),
+	attributes: {
+		points: [1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1]
+	},
+	count: 6
+};
 
-    gl.viewport(0, 0, widthDownsample, heightDownsample);
-
-    Nueva();
-    if (pointer.moved) {
-        splat(pointer.x, pointer.y, pointer.dx, pointer.dy, pointer.color);
-        pointer.moved = false;
+const texelSize = ({viewportWidth,viewportHeight})=>[1/viewportWidth,1/viewportHeight];
+const viewport = {
+    x: 0,
+    y: 0,
+    width: window.innerWidth >> config.TEXTURE_DOWNSAMPLE,
+    height: window.innerHeight >> config.TEXTURE_DOWNSAMPLE,
+};
+const advect = regl(Object.assign({
+	frag: fs.readFileSync(__dirname + "/shaders/advect.frag", 'utf8'),
+	framebuffer: regl.prop("framebuffer"),
+	uniforms: {
+        timestep: 0.017,
+        dissipation: regl.prop("dissipation"),
+        x: regl.prop("x"),
+        velocity: () => velocity.read,
+        texelSize,
+    },
+    viewport
+}, fullscreenDraw));
+const divergence = regl(Object.assign({
+	frag: fs.readFileSync(__dirname + "/shaders/divergence.frag", 'utf8'),
+	framebuffer: divergenceTex,
+	uniforms: {
+        velocity: () => velocity.read,
+        texelSize,
+    },
+    viewport
+}, fullscreenDraw));
+const clear = regl(Object.assign({
+    frag: fs.readFileSync(__dirname + "/shaders/clear.frag", 'utf8'),
+	framebuffer: () => pressure.write,
+	uniforms: {
+        pressure: () => pressure.read,
+        dissipation: config.PRESSURE_DISSIPATION,
+    },
+    viewport
+},fullscreenDraw));
+const gradientSubtract = regl(Object.assign({
+    frag: fs.readFileSync(__dirname + "/shaders/gradientSubtract.frag", 'utf8'),
+	framebuffer: () => velocity.write,
+	uniforms: {
+        pressure: () => pressure.read,
+        velocity: () => velocity.read,
+        texelSize,
+    },
+    viewport
+},fullscreenDraw));
+const display = regl(Object.assign({
+    frag: fs.readFileSync(__dirname + "/shaders/display.frag", 'utf8'),
+	uniforms: {
+        density: () => density.read,
     }
-    
-    velocity.writer.bind();
-    advectProgram.use()
-        .uniformi("velocity", velocity.reader)
-        .uniformi("x", velocity.reader)
-        .uniform("timestep", tick)
-        .uniform("dissipation", config.VELOCITY_DISSIPATION)
-        .draw(gl.TRIANGLE_STRIP, 4);
+},fullscreenDraw));
+const splat = regl(Object.assign({
+    frag: fs.readFileSync(__dirname + "/shaders/splat.frag", 'utf8'),
+    framebuffer: regl.prop("framebuffer"),
+	uniforms: {
+        uTarget: regl.prop("uTarget"),
+        aspectRatio: ({viewportWidth, viewportHeight}) => viewportWidth / viewportHeight,
+        point: regl.prop("point"),
+        color: regl.prop("color"),
+        radius: config.SPLAT_RADIUS,
+        density: () => density.read
+    },
+    viewport
+},fullscreenDraw));
+const jacobi = regl(Object.assign({
+    frag: fs.readFileSync(__dirname + "/shaders/jacobi.frag", 'utf8'),
+    framebuffer: () => pressure.write,
+	uniforms: {
+        pressure: () => pressure.read,
+        divergence: () => divergenceTex,
+        texelSize,
+    },
+    viewport
+},fullscreenDraw));
+function createSplat(x,y,dx,dy,color){
+    splat({
+        framebuffer: velocity.write,
+        uTarget: velocity.read,
+        point: [x / window.innerWidth, 1 - y / window.innerHeight],
+        color: [dx, -dy, 1],
+    });
     velocity.swap();
 
-    density.writer.bind();
-    advectProgram // because this program was already bound, you only need to specify uniforms that change
-        .uniformi("x", density.reader)
-        .uniform("dissipation", config.DENSITY_DISSIPATION)
-        .draw(gl.TRIANGLE_STRIP, 4);  
+    splat({
+        framebuffer: density.write,
+        uTarget: density.read,
+        point: [x / window.innerWidth, 1 - y / window.innerHeight],
+        color
+    });
     density.swap();
-
-    divergence.writer.bind();
-    divergenceProgram.use()
-        .uniformi("velocity", velocity.reader)
-        .draw(gl.TRIANGLE_STRIP, 4);
-
-    pressure.writer.bind();
-    clearProgram.use()
-        .uniformi("pressure", pressure.reader)
-        .uniform("dissipation", config.PRESSURE_DISSIPATION)
-        .draw(gl.TRIANGLE_STRIP, 4);
-    pressure.swap();
-
-    jacobiProgram.use()
-        .uniformi("pressure", pressure.reader)
-        .uniformi("divergence", divergence.index)
-        .uniform("alpha", -1);
-    gl.activeTexture(gl.TEXTURE0 + pressure.first.index);
-    for (let i = 0; i < config.PRESSURE_ITERATIONS; i++) {
-        pressure.first.reader.bind();
-        pressure.second.writer.bind();
-        jacobiProgram.draw(gl.TRIANGLE_STRIP, 4);
-        pressure.swap();
-    }
-    pressure.first.reader.bind(pressure.first.index); // Reset the swaps in case PRESSURE_ITERATIONS is an even number
-
-    velocity.writer.bind();
-    gradientSubtractProgram.use()
-        .uniformi("pressure", pressure.reader)
-        .uniformi("velocity", velocity.reader)
-        .draw(gl.TRIANGLE_STRIP, 4);
-    velocity.swap();
-
-    gl.viewport(0, 0, canvas.width, canvas.height);
-
-    igloo.defaultFramebuffer.bind();
-    displayProgram.use()
-        .uniformi("density", density.reader)
-        .draw(gl.TRIANGLE_STRIP, 4);
-    
-    window.requestAnimationFrame(draw);
 }
-window.requestAnimationFrame(draw);
 
 function Nueva() {
     const color = [0.0, 0.2, 0.5];
 
     for (let i = 0.8; i > 0.2; i -= 0.05) {
-        splat(0.4 * canvas.width, i * canvas.height, 0, 0, color);
-        splat(0.6 * canvas.width, i * canvas.height, 0, 0, color);        
+        createSplat(0.4 * window.innerWidth, i * window.innerHeight, 0, 0, color);
+        createSplat(0.6 * window.innerWidth, i * window.innerHeight, 0, 0, color);        
     }
 
     for (let i = -0.1; i <= 0.1; i += 0.0125) {
-        splat((i + 0.5) * canvas.width, (i * 3 + 0.5) * canvas.height, 0, 0, color);
+        createSplat((i + 0.5) * window.innerWidth, (i * 3 + 0.5) * window.innerHeight, 0, 0, color);
     }
 }
 
-function splat(x,y,dx,dy,color){
-    velocity.writer.bind();
-    splatProgram.use()
-        .uniformi("uTarget", velocity.reader)
-        .uniform("aspectRatio", canvas.width / canvas.height)
-        .uniform("point", [x / canvas.width, 1 - y / canvas.height])
-        .uniform("color", [dx, -dy, 1])
-        .uniform("radius", config.SPLAT_RADIUS)
-        .draw(gl.TRIANGLE_STRIP, 4);
+regl.frame(() => {
+    Nueva();
+    if (pointer.moved) {
+        createSplat(pointer.x, pointer.y, pointer.dx, pointer.dy, pointer.color);
+        pointer.moved = false;
+    }
+
+    advect({
+        framebuffer: velocity.write,
+        x: velocity.read,
+        dissipation: config.VELOCITY_DISSIPATION,
+    });
     velocity.swap();
 
-    density.writer.bind();
-    splatProgram.use()
-        .uniformi("uTarget", density.reader)
-        .uniform("color", color)
-        .draw(gl.TRIANGLE_STRIP, 4);
+    advect({
+        framebuffer: density.write,
+        x: density.read,
+        dissipation: config.DENSITY_DISSIPATION,
+    });
     density.swap();
-}
-window.addEventListener("resize", () => {
-    gl.viewport(0, 0, window.innerWidth, window.innerHeight);
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+
+    divergence();
+
+    clear();
+    pressure.swap();
+
+    for(let i = 0; i < config.PRESSURE_ITERATIONS; i++){
+        jacobi();
+        pressure.swap();
+    }
+
+    gradientSubtract();
+    velocity.swap();
+
+    display();
 });
+
 let pointer = {
-    id: -1,
     x: 0,
     y: 0,
     dx: 0,
@@ -198,17 +214,32 @@ let pointer = {
     moved: false,
     color: [30, 0, 300]
 };
-canvas.addEventListener("mousemove", (e) => {
+document.addEventListener("mousemove", (e) => {
     pointer.moved = pointer.down;
-    pointer.dx = (e.offsetX - pointer.x) * 10;
-    pointer.dy = (e.offsetY - pointer.y) * 10;
-    pointer.x = e.offsetX;
-    pointer.y = e.offsetY;
+    pointer.dx = (e.clientX - pointer.x) * 10;
+    pointer.dy = (e.clientY - pointer.y) * 10;
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
 });
-canvas.addEventListener('mousedown', () => {
+document.addEventListener('mousedown', () => {
     pointer.down = true;
     pointer.color = [Math.random() + 0.2, Math.random() + 0.2, Math.random() + 0.2];
 });
 window.addEventListener('mouseup', () => {
     pointer.down = false;
 });
+
+window.dialogue=()=>{
+    swal("How I created this project",
+        `The simulation is a model of what would happen if you put dye in water and stirred it around.
+        A similar model is also applicable to smoke.
+        
+        I have seen multiple fluid simulations of navier stokes equations and wanted to make my own
+        I have done a couple of projects with webgl and found it a fun challenge
+        I really like how the fluid simulations I’d seen looked
+
+        Fluid was more complex than many other things I had done, and paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.
+        
+        The N in the fluid symbolizes how Nueva is flexible, and can adapt to changes`);
+};
+window.dialogue();
