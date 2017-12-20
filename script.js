@@ -17,10 +17,10 @@ const config = {
 };
 
 const splatProgram = igloo.program("shaders/project.vert", "shaders/splat.frag").attrib("points", quad, 2);
-const clearProgram = igloo.program("shaders/project.vert", "shaders/clear.frag").attrib("points", quad, 2);
 const advectProgram = igloo.program("shaders/project.vert", "shaders/advect.frag").attrib("points", quad, 2);
 const jacobiProgram = igloo.program("shaders/project.vert", "shaders/jacobi.frag").attrib("points", quad, 2);
 const divergenceProgram = igloo.program("shaders/project.vert", "shaders/divergence.frag").attrib("points", quad, 2);
+const clearProgram = igloo.program("shaders/project.vert", "shaders/clear.frag").attrib("points", quad, 2);
 const gradientSubtractProgram = igloo.program("shaders/project.vert", "shaders/gradientSubtract.frag").attrib("points", quad, 2);
 const displayProgram = igloo.program("shaders/project.vert", "shaders/display.frag").attrib("points", quad, 2);
 
@@ -105,6 +105,7 @@ function draw() {
     density.writer.bind();
     advectProgram // because this program was already bound, you only need to specify uniforms that change
         .uniformi("x", density.reader)
+        .uniform("dissipation", config.DENSITY_DISSIPATION)
         .draw(gl.TRIANGLE_STRIP, 4);  
     density.swap();
 
