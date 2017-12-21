@@ -1,6 +1,8 @@
-const swal = require("sweetalert");
-const fs = require('fs');
-const regl = require('regl')({
+import swal from "sweetalert";
+import { readFileSync } from 'fs';
+import Regl from 'regl';
+
+const regl = Regl({
 	attributes: {
 		alpha: false,
 		depth: false,
@@ -54,7 +56,7 @@ const pressure = doubleFbo('nearest');
 const divergenceTex = createFbo('nearest');
 
 const fullscreenDraw = {
-	vert: fs.readFileSync(__dirname + "/shaders/project.vert", 'utf8'),
+	vert: readFileSync(`${__dirname}/shaders/project.vert`, 'utf8'),
 	attributes: {
 		points: [1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1]
 	},
@@ -69,7 +71,7 @@ const viewport = {
 	height: window.innerHeight >> config.TEXTURE_DOWNSAMPLE,
 };
 const advect = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/advect.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/advect.frag`, 'utf8'),
 	framebuffer: regl.prop("framebuffer"),
 	uniforms: {
 		timestep: 0.017,
@@ -81,7 +83,7 @@ const advect = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const divergence = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/divergence.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/divergence.frag`, 'utf8'),
 	framebuffer: divergenceTex,
 	uniforms: {
 		velocity: () => velocity.read,
@@ -90,7 +92,7 @@ const divergence = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const clear = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/clear.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/clear.frag`, 'utf8'),
 	framebuffer: () => pressure.write,
 	uniforms: {
 		pressure: () => pressure.read,
@@ -99,7 +101,7 @@ const clear = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const gradientSubtract = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/gradientSubtract.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/gradientSubtract.frag`, 'utf8'),
 	framebuffer: () => velocity.write,
 	uniforms: {
 		pressure: () => pressure.read,
@@ -109,13 +111,13 @@ const gradientSubtract = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const display = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/display.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/display.frag`, 'utf8'),
 	uniforms: {
 		density: () => density.read,
 	}
 }, fullscreenDraw));
 const splat = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/splat.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/splat.frag`, 'utf8'),
 	framebuffer: regl.prop("framebuffer"),
 	uniforms: {
 		uTarget: regl.prop("uTarget"),
@@ -128,7 +130,7 @@ const splat = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const jacobi = regl(Object.assign({
-	frag: fs.readFileSync(__dirname + "/shaders/jacobi.frag", 'utf8'),
+	frag: readFileSync(`${__dirname}/shaders/jacobi.frag`, 'utf8'),
 	framebuffer: () => pressure.write,
 	uniforms: {
 		pressure: () => pressure.read,
