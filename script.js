@@ -235,9 +235,8 @@ window.dialogue = () => {
 		title: "How I created this project",
 		text: `The simulation is a model of what would happen if you put dye in water and stirred it around.
 
-        I have seen multiple fluid simulations of navier stokes equations and wanted to make my own
-        I have done a couple of projects with webgl and found it a fun challenge
-        I really like how the fluid simulations I'd seen looked
+		Why I wanted to make this project:
+		I have seen multiple fluid simulations of navier stokes equations and wanted to make my own. I have done a couple of projects with webgl and found it a fun challenge. I really like how the fluid simulations I'd seen looked
 
         Fluid was more complex than many other things I had done, and paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.
 
@@ -245,6 +244,11 @@ window.dialogue = () => {
 		button: {
 			text: "Close"
 		}
+	}).then(() => {
+		swal({
+			title: "How to use!", 
+			text: "Click and drag your mouse to create fluid!"
+		});
 	});
 };
 window.dialogue();
