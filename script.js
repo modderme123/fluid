@@ -1,6 +1,9 @@
-import swal from "sweetalert";
-import { readFileSync } from 'fs';
 import Regl from 'regl';
+import vex from 'vex-js';
+
+import "vex-js/dist/css/vex.css";
+import "vex-js/dist/css/vex-theme-default.css";
+vex.defaultOptions.className = "vex-theme-default";
 
 const regl = Regl({
 	attributes: {
@@ -56,7 +59,7 @@ const pressure = doubleFbo('nearest');
 const divergenceTex = createFbo('nearest');
 
 const fullscreenDraw = {
-	vert: readFileSync(`${__dirname}/shaders/project.vert`, 'utf8'),
+	vert: require("raw-loader!./shaders/project.vert"),
 	attributes: {
 		points: [1, 1, 1, -1, -1, -1, 1, 1, -1, -1, -1, 1]
 	},
@@ -71,7 +74,7 @@ const viewport = {
 	height: window.innerHeight >> config.TEXTURE_DOWNSAMPLE,
 };
 const advect = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/advect.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/advect.frag"),
 	framebuffer: regl.prop("framebuffer"),
 	uniforms: {
 		timestep: 0.017,
@@ -83,7 +86,7 @@ const advect = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const divergence = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/divergence.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/divergence.frag"),
 	framebuffer: divergenceTex,
 	uniforms: {
 		velocity: () => velocity.read,
@@ -92,7 +95,7 @@ const divergence = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const clear = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/clear.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/clear.frag"),
 	framebuffer: () => pressure.write,
 	uniforms: {
 		pressure: () => pressure.read,
@@ -101,7 +104,7 @@ const clear = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const gradientSubtract = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/gradientSubtract.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/gradientSubtract.frag"),
 	framebuffer: () => velocity.write,
 	uniforms: {
 		pressure: () => pressure.read,
@@ -111,13 +114,13 @@ const gradientSubtract = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const display = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/display.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/display.frag"),
 	uniforms: {
 		density: () => density.read,
 	}
 }, fullscreenDraw));
 const splat = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/splat.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/splat.frag"),
 	framebuffer: regl.prop("framebuffer"),
 	uniforms: {
 		uTarget: regl.prop("uTarget"),
@@ -130,7 +133,7 @@ const splat = regl(Object.assign({
 	viewport
 }, fullscreenDraw));
 const jacobi = regl(Object.assign({
-	frag: readFileSync(`${__dirname}/shaders/jacobi.frag`, 'utf8'),
+	frag: require("raw-loader!./shaders/jacobi.frag"),
 	framebuffer: () => pressure.write,
 	uniforms: {
 		pressure: () => pressure.read,
@@ -230,25 +233,26 @@ window.addEventListener('mouseup', () => {
 	pointer.down = false;
 });
 
+vex.registerPlugin(require('vex-dialog'));
 window.dialogue = () => {
-	swal({
-		title: "How I created this project",
-		text: `The simulation is a model of what would happen if you put dye in water and stirred it around.
+	vex.dialog.alert({
+		unsafeMessage: `<h1>How I created this project</h1>
+		<p>The simulation is a model of what would happen if you put dye in water and stirred it around.</p>
 
-		Why I wanted to make this project:
-		I have seen multiple fluid simulations of navier stokes equations and wanted to make my own. I have done a couple of projects with webgl and found it a fun challenge. I really like how the fluid simulations I'd seen looked
+		<h2>Why I wanted to make this project:</h2>
+		<p>I have seen multiple fluid simulations of navier stokes equations and wanted to make my own. I have done a couple of projects with webgl and found it a fun challenge. I really like how the fluid simulations I'd seen looked</p>
 
-        Fluid was more complex than many other things I had done, and paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.
+        <p>Fluid was more complex than many other things I had done, and paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.</p>
 
-		The N in the fluid symbolizes how Nueva is flexible, and can adapt to changes`,
-		button: {
-			text: "Close"
+		<p>The N in the fluid symbolizes how Nueva is flexible, and can adapt to changes</p>`,
+		callback: () => {
+			vex.dialog.alert({
+				unsafeMessage: `<h1>How to use</h1>
+				<p>Click and drag your mouse to create fluid! 
+				<br><br>
+				If the site is slow, try using <a href="https://www.google.com/chrome/">Google Chrome</a></p>`
+			});
 		}
-	}).then(() => {
-		swal({
-			title: "How to use!", 
-			text: "Click and drag your mouse to create fluid!"
-		});
 	});
 };
 window.dialogue();

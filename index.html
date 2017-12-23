@@ -10,16 +10,21 @@
             overflow: hidden;
             margin: 0;
             padding: 0;
-            font-family: 'Open Sans'
+            font-family: 'Open Sans';
         }
-        .swal-modal {
-            background-color: rgba(28, 30, 35, 0.9);
+        .vex {
+            padding: 100px !important;
         }
-        .swal-text, .swal-title {
-            color: white;
+        .vex .vex-content {
+            background-color: rgba(28, 30, 35, 0.9) !important;
+            color: white !important;
+            width: 550px !important;
         }
-        .swal-title {
+        .vex h1, .vex h2 {
             font-family: 'Comfortaa';
+        }
+        .vex p {
+            font-family: 'Open Sans' !important;
         }
         .info {
             position: absolute;
@@ -35,6 +40,6 @@
 </head>
 <body>
     <a class="info" onclick="dialogue()">&#9432;</a>
-    <script src="script.js"></script>
+    <script src="bundle.js"></script>
 </body>
 </html>
