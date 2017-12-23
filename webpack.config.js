@@ -1,9 +1,7 @@
-const path = require("path");
-
 module.exports = {
     entry: require.resolve("./script.js"),
     output: {
-        path: path.resolve(__dirname, "dist"),
+        path: __dirname,
         filename: "bundle.js"
     },
     devtool: "source-map",
