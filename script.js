@@ -236,7 +236,8 @@ window.addEventListener('mouseup', () => {
 vex.registerPlugin(require('vex-dialog'));
 window.dialogue = () => {
 	vex.dialog.alert({
-		unsafeMessage: `<h1>How I created this project</h1>
+		unsafeMessage: `<h1>Nueva Jets</h1>
+		<h3>Click and drag your mouse to create fluid! </h3>
 		<p>The simulation is a model of what would happen if you put dye in water and stirred it around.</p>
 
 		<h2>Why I wanted to make this project</h2>
@@ -248,13 +249,9 @@ window.dialogue = () => {
 		<p>Fluid paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.</p>
 		
 		<h2>You can view the source code on <a href="http://github.com/modderme123/fluid">Github</a></h2>
-
-		<h2>Timeline</h2>
 		<p>This project took me over three weeks to implement. I had selected <a href="http://github.com/skeeto/igloojs">Igloo.js</a> as a good webgl library for this project. However, after finding Igloo.js slow, I went browsing for faster alternatives. This yielded <a href="http://regl.party">regl</a> to be a better library for my purposes. </p>
 
-		<h2>How to use</h2>
-		<p>Click and drag your mouse to create fluid! <br>
-		If the site is slow, try using <a href="https://www.google.com/chrome/">Google Chrome</a></p>`,
+		<p>If the site is slow, try using <a href="https://www.google.com/chrome/">Google Chrome</a></p>`,
 	});
 	document.querySelector(".vex").scrollTop = 0;
 };
