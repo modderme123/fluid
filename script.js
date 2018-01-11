@@ -237,19 +237,16 @@ vex.registerPlugin(require('vex-dialog'));
 window.dialogue = () => {
 	vex.dialog.alert({
 		unsafeMessage: `<h1>Nueva Jets</h1>
-		<h3>Click and drag your mouse to create fluid! </h3>
-		<p>The simulation is a model of what would happen if you put dye in water and stirred it around.</p>
+		<h2>by Milo Mighdoll, 9th grade applicant</h2>
+		<h3>** Click and drag your mouse to create fluid! **</h3>
+		<p>The simulation is a model of what happens if you put dye in water and stir it around.</p>
+		<p>The N in the fluid symbolizes how Nueva is flexible, and can adapt to changes</p>
 
 		<h2>Why I wanted to make this project</h2>
-		<p>I have seen multiple fluid simulations of navier stokes equations and wanted to make my own. I have done a couple of projects with webgl and found it a fun challenge.</p>
-		<p>The N in the fluid symbolizes how Nueva is flexible, and can adapt to changes</p>
-		
-		<h2>How it works</h2>
-		<p>It moves a field of colored particles with a field of velocities</p>
-		<p>Fluid paired nicely with webgl because webgl can use textures to simulate vector fields split across multiple gpu cores.</p>
-		
+		<p>I have seen multiple fluid simulations of Navier-Stokes equations and wanted to make my own. I have done a couple of projects with WebGL and found it a fun challenge. Fluid paired nicely with WebGL because WebGL can use textures to simulate vector fields split across multiple gpu cores.</p>
+
 		<h2>You can view the source code on <a href="http://github.com/modderme123/fluid">Github</a></h2>
-		<p>This project took me over three weeks to implement. I had selected <a href="http://github.com/skeeto/igloojs">Igloo.js</a> as a good webgl library for this project. However, after finding Igloo.js slow, I went browsing for faster alternatives. This yielded <a href="http://regl.party">regl</a> to be a better library for my purposes. </p>
+		<p>This project took me over three weeks to implement. I had selected <a href="http://github.com/skeeto/igloojs">Igloo</a> as a good WebGL library for this project. However, after finding Igloo slow, I went browsing for faster alternatives. This yielded <a href="http://regl.party">regl</a>, a better library for my purposes. </p>
 
 		<p>If the site is slow, try using <a href="https://www.google.com/chrome/">Google Chrome</a></p>`,
 	});
